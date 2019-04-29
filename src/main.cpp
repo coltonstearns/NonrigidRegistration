@@ -57,42 +57,14 @@ int main()
     //     cloud->points[i] = points[i];
     // }
     
-    // check computing normals
-    pcl::PointCloud<pcl::Normal>::Ptr baseline_normals = getCloudNormals(rawdata.baseline);
-    std::cout << baseline_normals->points.size() << std::endl; // should have the same size as the input cloud->points.size ()*
-    std::cout << rawdata.baseline->points.size() << std::endl;
 
-    // check computing fpfh for one cloud
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr data_features = computeFPFH(rawdata.baseline, baseline_normals, 5.0);
-    std::cout << data_features->points.size() << std::endl;
-    std::cout << data_features->points.at(0).descriptorSize << std::endl; // points to a struct with a 33 point histogram float[33]!
-    // float histo[33];
-    // for (int i = 0; i < 33; i++){
-    //     histo[i] = data_features->points.at(0).histogram[i];
-    //     std::cout << histo[i] << ", ";
-    // }
-    // std::cout << std::endl;
-    // std::cout << data_features->points.at(0).descriptorSize << std::endl; // points to histogram object!
-
-
-
-    // compute correspondences between the 2 cats
-    // for (int i = 1; i <= 10; i++){
-    //     pcl::Correspondences correspondences = calculateCorrespondences(rawdata.baseline, rawdata.transformed, float (i));
-    // }
-
-    pcl::Correspondences correspondences = calculateCorrespondences(rawdata.baseline, rawdata.transformed, 8.9);
+    // test computing all significant/unique correspondences
+    pcl::Correspondences correspondences = calculateCorrespondences(rawdata.baseline, rawdata.transformed, 8.9); // 8.9 is optimal value
     std::cout << correspondences.size() << endl;
     std::cout << correspondences.at(0) << endl;
 
-
     // visualize the point cloud
     pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-    // viewer.showCloud (rawdata.baseline);
-    // while (!viewer.wasStopped ())
-    // {
-    // }
-
     viewer.showCloud (rawdata.transformed);
     while (!viewer.wasStopped ())
     {
