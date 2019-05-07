@@ -31,7 +31,6 @@ Given a Tsoca Ascii data file path, parses the data.
 */
 pcl::PointCloud<pcl::PointXYZ>::Ptr parseToscaDataFile(char* filepath) {
     //initialize return value array
-
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
     // check to see if our file is a .vert file

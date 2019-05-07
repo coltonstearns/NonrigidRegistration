@@ -5,6 +5,10 @@
 #include <pcl/features/fpfh.h>  // fpfh object
 #include <pcl/registration/correspondence_estimation.h> // for calculating distance correspondences
 
+// visualization script
+#include <pcl/visualization/pcl_visualizer.h>  // visualizer 
+#include <pcl/common/transforms.h>
+
 
 /*
 Computes and returns the normals of a point cloud
@@ -83,4 +87,92 @@ pcl::Correspondences calculateCorrespondences(pcl::PointCloud<pcl::PointXYZ>::Pt
     // return our correspondences
     return all_correspondences;
 
+}
+
+
+
+
+/**
+ * Helps visualise the correspondences we will use
+ **/
+void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, pcl::PointCloud<pcl::PointXYZ>::Ptr target_raw, pcl::Correspondences correspondences){
+    // convert both clouds into RGB
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr source (new pcl::PointCloud<pcl::PointXYZRGB>);
+    for (int i=0; i < source_raw->size(); i++){
+        pcl::PointXYZRGB point = pcl::PointXYZRGB(255, 255, 255);
+        point.x = source_raw->at(i).x; point.y = source_raw->at(i).y; point.z = source_raw->at(i).z;
+        source->push_back(point);
+    }
+
+    // convert both clouds into RGB
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr target (new pcl::PointCloud<pcl::PointXYZRGB>);
+    for (int i=0; i < source_raw->size(); i++){
+        pcl::PointXYZRGB point = pcl::PointXYZRGB(255, 255, 255);
+        point.x = target_raw->at(i).x; point.y = target_raw->at(i).y; point.z = target_raw->at(i).z;
+        target->push_back(point);
+    }
+    
+    // initialize visualization
+    pcl::visualization::PCLVisualizer viscorr;
+    std::cout << "HERE0" << std::endl;
+
+    // add source cloud to visualizer
+    viscorr.addPointCloud(source->makeShared(), "src_points");
+
+    //I will translate the target cloud in the x direction for better viewing the correspondence
+    // because my two clouds were //overlapping together you can ignore this if your clouds don't overlap
+    // Add it to visualizer
+    Eigen::Matrix4f t;
+    t<<1,0,0,100,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr target_tranformed (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::transformPointCloud(*target, *target_tranformed, t);
+    viscorr.addPointCloud(target_tranformed->makeShared(), "tgt_points");
+    std::cout << "HERE" << std::endl;
+
+    //I am using this boolean to alter the color of the spheres
+    bool alter=false;
+    for (size_t i = 0; i < target_tranformed->size(); i += 10)
+    {
+
+        // gives fpfh correspondences
+        const pcl::PointXYZRGB & p_src = source->points.at(correspondences.at(i).index_query);
+        pcl::PointXYZRGB & p_tgt = target->points.at(correspondences.at(i).index_match);
+
+        // gives ground truth correspondences
+        // const pcl::PointXYZRGB & p_src = source->points.at(i);
+        // pcl::PointXYZRGB & p_tgt = target->points.at(i);
+
+        // Generate a unique string for each line
+        std::stringstream ss ("line");
+        ss << i;
+        //this is to translate the keypoint location as I translated the original cloud
+        p_tgt.x+=100;
+            
+        std::stringstream sss ("spheresource");
+        sss << i;
+    
+        std::stringstream ssss ("spheretarget");
+        ssss << i;
+        if(alter)
+        {
+            //this is for red lines and spheres
+            viscorr.addSphere<pcl::PointXYZRGB>(p_src,0.5,255,0,0,sss.str());
+            viscorr.addSphere<pcl::PointXYZRGB>(p_tgt,0.5,255,0,0,ssss.str());
+            viscorr.addLine<pcl::PointXYZRGB> (p_src, p_tgt, 50, 0, 155, ss.str ());      
+        }
+        else
+        {
+            //this is for yellow ones
+            viscorr.addSphere<pcl::PointXYZRGB>(p_src,0.5,255,255,0,sss.str());
+            viscorr.addSphere<pcl::PointXYZRGB>(p_tgt,0.5,255,255,0,ssss.str());
+            viscorr.addLine<pcl::PointXYZRGB> (p_src, p_tgt, 0, 50, 155, ss.str ());
+        }
+        alter=!alter;
+    }
+    viscorr.resetCamera ();
+    viscorr.spin (); 
 }

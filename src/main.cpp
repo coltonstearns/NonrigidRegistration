@@ -42,13 +42,14 @@ int main()
     // Eigen::MatrixXd ydata = Eigen::Map<Eigen::MatrixXd>(rawdata.baseline->data(), 3, ypoints).transpose();
     // Eigen::MatrixXd xdata = Eigen::Map<Eigen::MatrixXd>(rawdata.transformed->data(), 3, xpoints).transpose();
 
+    // ===================== Test Creating Own Cloud =====================
     // std::vector<pcl::PointXYZ> points;
     // for (int i=0; i < ypoints; i++){
     //     pcl::PointXYZ curr_point = pcl::PointXYZ(rawdata.baseline->at(3*i), rawdata.baseline->at(3*i+1), rawdata.baseline->at(3*i+2));
     //     points.push_back(curr_point);
     // }
 
-    // // pcl::visualization::CloudViewer::MonochromeCloud<pcl::PointXYZ> cloud;
+    // // Example of Visualization
     // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
     // cloud->width = ypoints; cloud->height = 1;
     // cloud->is_dense = true;
@@ -57,18 +58,20 @@ int main()
     //     cloud->points[i] = points[i];
     // }
     
-
-    // test computing all significant/unique correspondences
+    // ===================== Test Computing Correspondences =====================
     pcl::Correspondences correspondences = calculateCorrespondences(rawdata.baseline, rawdata.transformed, 8.9); // 8.9 is optimal value
     std::cout << correspondences.size() << endl;
     std::cout << correspondences.at(0) << endl;
+    std::cout << correspondences.at(0) << endl;
 
-    // visualize the point cloud
-    pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-    viewer.showCloud (rawdata.transformed);
-    while (!viewer.wasStopped ())
-    {
-    }
+    // ============================== Visualize =================================
+    visualize_correspondences(rawdata.baseline, rawdata.transformed, correspondences);
+
+    // pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+    // viewer.showCloud (rawdata.transformed);
+    // while (!viewer.wasStopped ())
+    // {
+    // }
 }
 
 

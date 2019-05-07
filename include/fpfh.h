@@ -3,10 +3,13 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/point_types.h>
 #include <pcl/features/fpfh.h>  // fpfh object
-#include <pcl/registration/ia_ransac.h>  // for sample consensus alignment object
-#include <pcl/common/transforms.h>  // for transforming point cloud to target with 6 degree of freedom matrix
 #include <pcl/registration/correspondence_estimation.h> // for calculating distance correspondences
+
+// visualization script
+#include <pcl/visualization/pcl_visualizer.h>  // visualizer 
+#include <pcl/common/transforms.h>
 
 pcl::PointCloud<pcl::Normal>::Ptr getCloudNormals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, float radius);
 pcl::Correspondences calculateCorrespondences(pcl::PointCloud<pcl::PointXYZ>::Ptr data, pcl::PointCloud<pcl::PointXYZ>::Ptr target, float fpfh_radius);
+void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, pcl::PointCloud<pcl::PointXYZ>::Ptr target_raw, pcl::Correspondences correspondences);
