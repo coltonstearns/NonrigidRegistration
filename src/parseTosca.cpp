@@ -21,8 +21,8 @@ catData generateCatPointCloud() {
     char cat_baseline_path[] = "/home/colton/Documents/6.838 Final Project/test/TOSCA/cat0.vert";
     char cat_transformed_path[] = "/home/colton/Documents/6.838 Final Project/test/TOSCA/cat3.vert";
     catData vertex_data;
-    vertex_data.baseline = parseToscaDataFile(cat_baseline_path);
-    vertex_data.transformed = parseToscaDataFile(cat_transformed_path);
+    vertex_data.source = parseToscaDataFile(cat_baseline_path);
+    vertex_data.target = parseToscaDataFile(cat_transformed_path);
     return vertex_data;
 }
 

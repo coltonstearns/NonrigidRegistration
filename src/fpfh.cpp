@@ -135,7 +135,7 @@ void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, p
 
     //I am using this boolean to alter the color of the spheres
     bool alter=false;
-    for (size_t i = 0; i < target_tranformed->size(); i += 10)
+    for (size_t i = 0; i < correspondences.size(); i += 1)
     {
 
         // gives fpfh correspondences

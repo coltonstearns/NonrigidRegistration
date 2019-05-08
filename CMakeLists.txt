@@ -6,7 +6,7 @@ project( 6.838_Final_Project )
 # Find Packages
 find_package( PCL 1.9 REQUIRED )
  
-# include our src directory
+# include our headers directory
 include_directories(include)
 
 # add all our source files

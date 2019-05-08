@@ -5,8 +5,8 @@
 
 // struct to store the TOSCA cat point clouds
 struct catData {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr baseline;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr source;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr target;
 };
 
 catData generateCatPointCloud();

@@ -1,24 +1,81 @@
 // 6.838 Final Project.cpp : This file contains the 'main' function. Program execution begins and ends there.
 
+
+// #include <vector>
+// #include <array>
+// #include <eigen3/Eigen/Dense>
+
+// #include <pcl/visualization/cloud_viewer.h>  // visualization tool
+// // #include <pcl/io/io.h>   // idk what this is for
+// #include <pcl/io/pcd_io.h>
+// #include <pcl/impl/point_types.hpp>
+// #include <pcl/features/normal_3d.h>
+
 #include <iostream>
-#include <vector>
-#include <array>
-#include <eigen3/Eigen/Dense>
+#include <stdio.h>
+#include <time.h>
 
-#include <pcl/visualization/cloud_viewer.h>  // visualization tool
-// #include <pcl/io/io.h>   // idk what this is for
-#include <pcl/io/pcd_io.h>
-#include <pcl/impl/point_types.hpp>
-#include <pcl/features/normal_3d.h>
+#include "alignment.h"
 
-#include "parseTosca.h"
-#include "fpfh.h"
+int main(){
+    time_t start;
+    time_t end;
+	start = time(NULL);
+
+    // load data and initialize
+    NonrigidAlign test; // initializes as test() in python
+    end = time(NULL);
+    std::printf("Loading Data Took %lld seconds.\n", (long long) end-start);
+    start = end;
+
+    // get correspondences
+    test.getCorrespondences();
+    end = time(NULL);
+    std::printf("Computing Correspondences Took %lld seconds.\n", (long long) end-start);
+    start = end;
+
+    // filter for putative point sets
+    test.getPutativeCorrespondenceSets();
+    end = time(NULL);
+    std::printf("Creating Putative Sets Took %lld seconds.\n", (long long) end-start);
+    start = end;
+
+    // compute graph laplacian
+    test.computeLaplacian();
+    end = time(NULL);
+    std::printf("Computing Graph Laplacian of entire Source Took %lld seconds.\n", (long long) end-start);
+    start = end;  
+
+    // display our correspondences
+    // test.displayCorrespondences();
+
+    // compute our kernel matrix!
+    
+}
 
 
-Eigen::MatrixXd point_set_squared_distance(Eigen::MatrixXd X, Eigen::MatrixXd C);
 
-int main()
-{
+
+
+
+
+
+
+
+
+
+
+
+
+// =============================================================================
+// =============================================================================
+// =========================== Old Version of Main =============================
+// =============================================================================
+// =============================================================================
+
+
+// int main()
+// {
     
     // =============== Test point_set_squared_distance ==================
     //Eigen::Matrix<double, 4, 2> x;
@@ -36,7 +93,7 @@ int main()
     //std::vector<std::array<double, 3>> data = parseToscaData(test_dir);
 
     // ===================== Test generateCatPointCloud ==================
-    catData rawdata = generateCatPointCloud();
+    // catData rawdata = generateCatPointCloud();
     // int ypoints = rawdata.baseline->size() / 3;
     // int xpoints = rawdata.transformed->size() / 3;
     // Eigen::MatrixXd ydata = Eigen::Map<Eigen::MatrixXd>(rawdata.baseline->data(), 3, ypoints).transpose();
@@ -59,45 +116,14 @@ int main()
     // }
     
     // ===================== Test Computing Correspondences =====================
-    pcl::Correspondences correspondences = calculateCorrespondences(rawdata.baseline, rawdata.transformed, 8.9); // 8.9 is optimal value
-    std::cout << correspondences.size() << endl;
-    std::cout << correspondences.at(0) << endl;
-    std::cout << correspondences.at(0) << endl;
+    // pcl::Correspondences correspondences = calculateCorrespondences(rawdata.source, rawdata.target, 8.9); // 8.9 is optimal value
+    // std::cout << correspondences.size() << endl;
+    // std::cout << correspondences.at(0) << endl;  // is a correspondence struct from PCL library
 
     // ============================== Visualize =================================
-    visualize_correspondences(rawdata.baseline, rawdata.transformed, correspondences);
+    // visualize_correspondences(rawdata.baseline, rawdata.transformed, correspondences);
 
-    // pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-    // viewer.showCloud (rawdata.transformed);
-    // while (!viewer.wasStopped ())
-    // {
-    // }
-}
-
-
-/*
-Takes two matrices of (points by dims) and calculates the
-squared Euclidean distance between them. 
-This takes O(d*n*m), where d is dimensions, n is data points, and m is centers.
-*/
-Eigen::MatrixXd point_set_squared_distance(Eigen::MatrixXd X, Eigen::MatrixXd C) {
-
-    const int ndata = X.rows();
-    const int dimx = X.cols();
-    const int ncenters = C.rows();
-    const int dimc = C.cols();
-
-    if (dimx != dimc) {
-        throw std::runtime_error("Data dimension does not match the dimension of the centers");
-    }
-
-    Eigen::MatrixXd tempDataOnes = Eigen::MatrixXd::Ones(ndata, 1);
-    Eigen::MatrixXd tempCentersOnes = Eigen::MatrixXd::Ones(ncenters, 1);
-    Eigen::MatrixXd sumDataTemp = X.array().pow(2).transpose().colwise().sum();
-    Eigen::MatrixXd sumCentersTemp = C.array().pow(2).transpose().colwise().sum();
-    Eigen::MatrixXd firstTerm = tempCentersOnes * sumDataTemp;
-    Eigen::MatrixXd secondTerm = tempDataOnes * sumCentersTemp;
-    Eigen::MatrixXd thirdTerm = 2 * X * C.transpose();
-    return firstTerm.transpose() + secondTerm - thirdTerm;
-
-}
+    // ====================== Test Laplacian Matrix Generation ===================
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr transformed (new pcl::PointCloud<pcl::PointXYZ>);
+    // transform(rawdata.source, rawdata.target, correspondences, transformed);
+// }
