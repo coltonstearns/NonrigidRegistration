@@ -1,0 +1,5 @@
+# don't track these folders
+MR-RPM-master
+results
+.vscode
+build
