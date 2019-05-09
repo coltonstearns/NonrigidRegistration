@@ -34,8 +34,8 @@ int main(){
     std::printf("Computing Correspondences Took %lld seconds.\n", (long long) end-start);
     start = end;
 
-    // filter for putative point sets
-    test.getPutativeCorrespondenceSets();
+    // copy all point cloud data to eigen
+    test.generateEigenMatrices();
     end = time(NULL);
     std::printf("Creating Putative Sets Took %lld seconds.\n", (long long) end-start);
     start = end;
@@ -50,7 +50,7 @@ int main(){
     // test.displayCorrespondences();
 
     // compute our kernel matrix!
-    
+    test.alignOneiter(.1, .1);
 }
 
 

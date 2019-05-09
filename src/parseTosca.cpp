@@ -18,8 +18,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr parseToscaDataFile(char* filepath);
 
 
 catData generateCatPointCloud() {
-    char cat_baseline_path[] = "/home/colton/Documents/6.838 Final Project/test/TOSCA/cat0.vert";
-    char cat_transformed_path[] = "/home/colton/Documents/6.838 Final Project/test/TOSCA/cat3.vert";
+    char cat_baseline_path[] = "/home/colton/Documents/6.838 Final Project/test/TOSCA/wolf1.vert";
+    char cat_transformed_path[] = "/home/colton/Documents/6.838 Final Project/test/TOSCA/wolf0.vert";
     catData vertex_data;
     vertex_data.source = parseToscaDataFile(cat_baseline_path);
     vertex_data.target = parseToscaDataFile(cat_transformed_path);

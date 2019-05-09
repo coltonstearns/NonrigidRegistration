@@ -19,9 +19,19 @@
 #include "parseTosca.h"
 #include "fpfh.h"
 #include "register.h"
+#include "rkhs.h"
 
 // boost
 #include <boost/smart_ptr/shared_ptr.hpp>
+
+struct MatrixData {
+    Eigen::MatrixXf source;
+    Eigen::MatrixXf target;
+    Eigen::MatrixXf putative_source;
+    Eigen::MatrixXf putative_target;
+    Eigen::MatrixXf correspondences;
+};
+
 
 
 class NonrigidAlign {
@@ -29,11 +39,13 @@ class NonrigidAlign {
         catData data;
         pcl::Correspondences correspondences;
         Eigen::SparseMatrix<float> laplacian;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr putative_source;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr putative_target;
+        MatrixData matrix_data; 
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr putative_source;
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr putative_target;
 
 
     public:
+
         /**
          * Constructor for default cat data
          */
@@ -46,10 +58,10 @@ class NonrigidAlign {
         void getCorrespondences();
 
         /**
-         * Creates two points clouds that only contain the corresponding points from the
-         * FPFH matching
+         * Once correspondences are calculated, transfers all matrices to eigen format instead of
+         * pcl point cloud.
          */
-        void getPutativeCorrespondenceSets();
+        void generateEigenMatrices();
 
         /**
          * Displays 3D view of correspondences
@@ -62,5 +74,13 @@ class NonrigidAlign {
          */
         void computeLaplacian();
 
+        /**
+         * solve one iteration of the non-rigid alignment
+         */
+        void alignOneiter(float lambda1, float lambda2);
+
 
 };
+
+
+void get_correspondence_matrix(Eigen::MatrixXf X, Eigen::MatrixXf correspondences, Eigen::MatrixXf putative_X);
