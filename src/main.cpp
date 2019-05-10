@@ -5,7 +5,7 @@
 // #include <array>
 // #include <eigen3/Eigen/Dense>
 
-// #include <pcl/visualization/cloud_viewer.h>  // visualization tool
+#include <pcl/visualization/cloud_viewer.h>  // visualization tool
 // // #include <pcl/io/io.h>   // idk what this is for
 // #include <pcl/io/pcd_io.h>
 // #include <pcl/impl/point_types.hpp>
@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <time.h>
 
+#include "parseTosca.h"
 #include "alignment.h"
 
 int main(){
@@ -22,35 +23,37 @@ int main(){
     time_t end;
 	start = time(NULL);
 
-    // load data and initialize
-    NonrigidAlign test; // initializes as test() in python
+    // load wolf data
+    catData wolfdata = generateCatPointCloud();
+    int npoints = wolfdata.source->width;
+
+    // initialize alignment object
+    NonrigidAlign test (wolfdata.source, wolfdata.target, npoints, -1); 
     end = time(NULL);
     std::printf("Loading Data Took %lld seconds.\n", (long long) end-start);
     start = end;
 
     // get correspondences
-    test.getCorrespondences();
+    Eigen::MatrixXf transformed (npoints, 3);
+    test.alignOneiter(transformed, .1, .1); // set lambda1 = lambda2 = .1
     end = time(NULL);
-    std::printf("Computing Correspondences Took %lld seconds.\n", (long long) end-start);
+    std::printf("Full Pipeline for first alignment took %lld seconds.\n", (long long) end-start);
     start = end;
-
-    // copy all point cloud data to eigen
-    test.generateEigenMatrices();
-    end = time(NULL);
-    std::printf("Creating Putative Sets Took %lld seconds.\n", (long long) end-start);
-    start = end;
-
-    // compute graph laplacian
-    test.computeLaplacian();
-    end = time(NULL);
-    std::printf("Computing Graph Laplacian of entire Source Took %lld seconds.\n", (long long) end-start);
-    start = end;  
 
     // display our correspondences
     // test.displayCorrespondences();
 
     // compute our kernel matrix!
-    test.alignOneiter(.1, .1);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr vis (new pcl::PointCloud<pcl::PointXYZ>);
+    for (int i = 0; i < npoints; i++){
+        pcl::PointXYZ p (transformed(i,0), transformed(i,1), transformed(i,2));
+        vis->push_back(p);
+    } 
+    pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+    viewer.showCloud (vis);
+    while (!viewer.wasStopped ())
+    {
+    }
 }
 
 

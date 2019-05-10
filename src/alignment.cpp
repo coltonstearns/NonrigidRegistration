@@ -5,208 +5,144 @@
 // ============================= Public Methods =================================
 
 /**
- * Constructor for default cat data
+ * Constructor. source and target are self explanatory.
+ * num_samples represents how many points to be randomly sampled in computing the alignment (-1 means use all points)
  */
-NonrigidAlign::NonrigidAlign(){
-    data = generateCatPointCloud();
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr putative_source_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr putative_target_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-    // putative_source = putative_source_ptr;
-    // putative_target = putative_target_ptr;
+NonrigidAlign::NonrigidAlign(pcl::PointCloud<pcl::PointXYZ>::Ptr source,
+ pcl::PointCloud<pcl::PointXYZ>::Ptr target, int npoints, int num_samples = -1){
+    // set start by setting input values for source and target
+    this->pcl_data.source = source;
+    this->pcl_data.target = target;
+    this->npoints = npoints;
+
+    // create eigen source and target
+    Eigen::MatrixXf s (npoints, dims);
+    Eigen::MatrixXf t (npoints, dims);
+    for (int i = 0; i < npoints; i++){
+        s(i,0) = pcl_data.source->at(i).x;
+        s(i,1) = pcl_data.source->at(i).y;
+        s(i,2) = pcl_data.source->at(i).z;
+        t(i,0) = pcl_data.target->at(i).x;
+        t(i,1) = pcl_data.target->at(i).y;
+        t(i,2) = pcl_data.target->at(i).z;
+    }
+    this->eigen_data.source = s;
+    this->eigen_data.target = t;
+
+    // compute and update pcl and eigen correspondences 
+    update_correspondences(8.9);  // 8.9
+
+    // update pcl and eigen putative sets
+    update_putative_sets();
 };
 
-void NonrigidAlign::getCorrespondences(){
-    correspondences = calculateCorrespondences(data.source, data.target, 8.9); // 8.9 is optimal value
-}
 
 /**
- * Translates all point cloud data into eigen data for easy use. This MUST
- * be called AFTER correspondences have been generated
+ * solve one iteration of the non-rigid alignment
  */
-void NonrigidAlign::generateEigenMatrices(){
-    // translate all from point cloud to eigen matrices
-    int npoints = data.source->width;
-    matrix_data.source = Eigen::MatrixXf(npoints, 3);
-    matrix_data.target = Eigen::MatrixXf(npoints, 3);
-    for (int i = 0; i < npoints; i++){
-        matrix_data.source(i,0) = data.source->at(i).x;
-        matrix_data.source(i,1) = data.source->at(i).y;
-        matrix_data.source(i,2) = data.source->at(i).z;
-        matrix_data.target(i,0) = data.target->at(i).x;
-        matrix_data.target(i,1) = data.target->at(i).y;
-        matrix_data.target(i,2) = data.target->at(i).z;
-    }
+void NonrigidAlign::alignOneiter(Eigen::MatrixXf final_transformed, float lambda1, float lambda2) {
+    // start by getting correspondences and sets
+    update_correspondences(8.9);
+    update_putative_sets();
 
-    // translate putative set to eigen matrices
-    int corr_points = correspondences.size();
-    matrix_data.correspondences = Eigen::MatrixXf(corr_points, 2);
-    matrix_data.putative_source = Eigen::MatrixXf(corr_points, 3);
-    matrix_data.putative_target = Eigen::MatrixXf(corr_points, 3);
-    for (int i = 0; i < correspondences.size(); i++){
-        pcl::Correspondence corr = correspondences.at(i);
-        matrix_data.correspondences(i,0) = corr.index_query;
-        matrix_data.correspondences(i,1) = corr.index_match;
-        matrix_data.putative_source(i,0) = data.source->at(corr.index_query).x;
-        matrix_data.putative_source(i,1) = data.source->at(corr.index_query).y;
-        matrix_data.putative_source(i,2) = data.source->at(corr.index_query).z;
-        matrix_data.putative_target(i,0) = data.source->at(corr.index_match).x;
-        matrix_data.putative_target(i,1) = data.source->at(corr.index_match).y;
-        matrix_data.putative_target(i,2) = data.source->at(corr.index_match).z;
-    }
+    // get laplacian and Tau
+    update_laplacian();
+    update_Tau();
+
+    // create our ALS object for this iteration
+    AlternatingLeastSquares als (Tau, laplacian, eigen_data.putative_source,
+     eigen_data.putative_target, lambda1, lambda2, volume, npoints,
+     ncorrs);
+
+    // perform ALS for 5 iterations to get optimal C
+    als.optimize(5);
+
+    // update our values to T(X)
+    transform_source(als.C);
+
 }
+
 
 /**
  * Displays 3D view of correspondencess
  */
 void NonrigidAlign::displayCorrespondences(){
-    visualize_correspondences(data.source, data.target, correspondences);
+    visualize_correspondences(pcl_data.source, pcl_data.target, pcl_data.correspondences);
 }
 
-/**
- * computes the Graph Laplacian of the ALL source points
- * This is the matrix A from the paper
- */
-void NonrigidAlign::computeLaplacian() {
-    int npoints = matrix_data.source.rows();
-    laplacian = Eigen::SparseMatrix<float>(npoints, npoints);
-    getLaplacian(data.source, laplacian);
-}
+
+
+// ============================= Private Methods ================================
 
 /**
- * solve one iteration of the non-rigid alignment
+ * Rather inefficient for now, but I doubt it will matter much
  */
-void NonrigidAlign::alignOneiter(float lambda1, float lambda2) {
-    // ====================================== Initialize Vars ==================================================
-    std::printf("Here 1\n");
-    int npoints = matrix_data.source.rows();
-    Eigen::MatrixXf X_n = matrix_data.source; // copy X matrices
-    Eigen::MatrixXf Y_n(matrix_data.target);
-    Eigen::MatrixXf X_l = matrix_data.putative_source;
-    Eigen::MatrixXf Y_l(matrix_data.putative_target);
+void NonrigidAlign::update_putative_sets() {
+    Eigen::MatrixXf eig_putative_source(ncorrs, dims);
+    Eigen::MatrixXf eig_putative_target(ncorrs, dims);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_putative_source (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_putative_target (new pcl::PointCloud<pcl::PointXYZ>);
+    
+    for (int i = 0; i < ncorrs; i++){
+        pcl::Correspondence corr = pcl_data.correspondences.at(i);
+        // update eigen matrices
+        eig_putative_source(i,0) = pcl_data.source->at(corr.index_query).x;
+        eig_putative_source(i,1) = pcl_data.source->at(corr.index_query).y;
+        eig_putative_source(i,2) = pcl_data.source->at(corr.index_query).z;
+        eig_putative_target(i,0) = pcl_data.target->at(corr.index_match).x;
+        eig_putative_target(i,1) = pcl_data.target->at(corr.index_match).y;
+        eig_putative_target(i,2) = pcl_data.target->at(corr.index_match).z;
 
-    std::printf("Here 2\n");
-    // generate Tau
-    Eigen::MatrixXf Tau(npoints, npoints);
-    computeGramKernel(X_n, Tau, 0.5); //set beta = .5
-
-    // generate J
-    int num_correspondences = correspondences.size();
-    Eigen::MatrixXf J (num_correspondences, npoints);
-    // std::printf("Here 4\n");
-    J << Eigen::MatrixXf::Identity(num_correspondences, num_correspondences), Eigen::MatrixXf::Zero(num_correspondences, npoints-num_correspondences);
-    // std::printf("Here 5\n");
-
-    // initialize C to make it so that T(X) = X
-    Eigen::MatrixXf C (npoints, 3); // 3d set of all vectors that correspond to point-kernels!
-
-    std::printf("Here 3\n");
-    // initialize probility parameters based on putative correspondences
-    float dims = 3.0;
-    Eigen::MatrixXf P = Eigen::MatrixXf::Identity(num_correspondences, num_correspondences);
-    float gamma = P.trace() / num_correspondences;
-    float var_denominator = dims * P.trace();
-    float variance = ((Y_l - X_l).transpose() * P * (Y_l-X_l)).trace() / var_denominator;
-
-    // define a, which is the bound on all volume
-    float a = 200. * 200. * 200.; // space ranges from -100 to 100 for all dimensions
-    // ========================================================================================================
-
-    // ========================================================================================================
-    // ====================== Do First Iteration By Hand to account for T(X) = X ==============================
-    // ========================================================================================================
-
-    std::printf("Here 6\n");
-    // compute first values of P
-    Eigen::MatrixXf Z = matrix_data.putative_target - matrix_data.putative_source;
-    for (int i = 1; i < num_correspondences; i++){
-        float part1 = gamma * std::exp((- Z.row(i).squaredNorm() / (2 * variance)));
-        float part2 = (1 - gamma) * pow(2 * M_PI * variance, dims/2) / a;
-        float p_i = part1 / (part1 + part2);
-        P(i,i) = p_i;
+        // update pcl version
+        pcl_putative_source->push_back(pcl_data.source->at(corr.index_query));
+        pcl_putative_target->push_back(pcl_data.source->at(corr.index_match));
     }
 
-    std::printf("Here 7\n");
-
-    // compute first variance and gamma
-    gamma = P.trace() / num_correspondences;
-    var_denominator = dims * P.trace();
-    variance = ((Y_l - X_l).transpose() * P * (Y_l - X_l)).trace() / var_denominator;   
-
-    std::printf("Here 8\n");
-
-    std::printf("Here 8.4\n");
-    // compute first C values
-    // TODO Eigen can't do multiple matmuls mixed or matmuls mixes with scalar muls in the same line!
-    // Have to break it up into multiple commands!!
-    Eigen::MatrixXf first_part = J.transpose()*P*J*Tau; // EXTREMELY SLOW BECAUSE (dense n by l)(dense l by l)(dense l by n)(dense n by n) --> O(n^3)!
-    cout << "Cols " << first_part.cols() << " Rows " << first_part.rows() << std::endl;
-    std::printf("Here 8.1\n");
-    Eigen::MatrixXf second_part = lambda1*variance*Eigen::MatrixXf::Identity(npoints, npoints);
-    cout << "Cols " << second_part.cols() << " Rows " << second_part.rows() << std::endl;
-    std::printf("Here 8.2\n");
-    Eigen::MatrixXf third_part = lambda2*variance*laplacian*Tau;
-    cout << "Cols " << third_part.cols() << " Rows " << third_part.rows() << std::endl;
-    std::printf("Here 8.3\n");
-    Eigen::MatrixXf left = first_part + second_part + third_part; // n x n
+    eigen_data.putative_source = eig_putative_source;
+    eigen_data.putative_target = eig_putative_target;
+    pcl_data.putative_source = pcl_putative_source;
+    pcl_data.putative_target = pcl_putative_target;
+}
 
 
-    Eigen::MatrixXf right = J.transpose() * P * Y_l;  // (dense l by n) (dense l by l) (dense l by 3)
-    cout << "Rows " << J.rows() << " Cols " << J.cols() << std::endl;
-    cout << "Rows " << P.rows() << " Cols " << P.cols() << std::endl;
-    cout << "Rows " << Y_l.rows() << " Cols " << Y_l.cols() << std::endl;
+void NonrigidAlign::update_laplacian(){
+    // compute the laplacian
+    Eigen::SparseMatrix<float> laplacian (npoints, npoints);
+    getLaplacian(pcl_data.source, laplacian);
 
-    std::printf("Here 8.5\n");
-    C = left.colPivHouseholderQr().solve(right);
+    // break laplacian down into eigenvecs and eigenvals and build up approximation
+    // TODO
+}
 
-    std::printf("Here 9\n");
-    // I'm here right now; refactor this to subsample for speed
-    // ========================================================================================================
-    // =============================== Run through until iters converge =======================================
-    // ========================================================================================================
-    // perform the EM + alternating Least Squres loop until converge to solution for P, C, gamma, and variance
-    for (int iter = 0; iter < 10; iter++) {
-        // compute transformation T(X) --> TODO: error in here somewhere
-        Eigen::MatrixXf t_of_X_n (npoints, 3);
-        for (int i = 0; i < npoints; i++){
-            Eigen::Block<Eigen::MatrixXf, 1, -1, false> precomputed_kernel_vals = Tau.row(i);
-            for (int j = 0; j < npoints; j++) {
-                // Kernel(x_i, x_{all}) * C_{all} to get the transformed point T(x_i)
-                t_of_X_n.row(i) = C.row(i) * (precomputed_kernel_vals(j) * Eigen::MatrixXf::Identity(3,3)); // results in 1x3
+void NonrigidAlign::update_Tau(){
+    Eigen::MatrixXf t (npoints, npoints);
+    computeGramKernel(eigen_data.source, t, 0.1); //set beta = .1
+    // TODO Tau is mostly sparse --> should change this
+}
+
+// TODO: read over this and make it cleaner
+void NonrigidAlign::transform_source(Eigen::MatrixXf C) {
+    transformed_X = Eigen::MatrixXf::Zero(npoints, 3);
+    for (int i = 0; i < npoints; i++){
+        Eigen::Block<Eigen::MatrixXf, 1, -1, false> precomputed_kernel_vals = Tau.row(i);
+        for (int j = 0; j < npoints; j++) {
+            // Kernel(x_i, x_{all}) * C_{all} to get the transformed point T(x_i)
+            if (precomputed_kernel_vals(j) > 0.000001){
+                transformed_X.row(i) += C.row(i) * (precomputed_kernel_vals(j) * Eigen::MatrixXf::Identity(3,3)); // results in 1x3
             }
         }
-        Eigen::MatrixXf t_of_X_l (num_correspondences, 3);
-        get_correspondence_matrix(t_of_X_n, matrix_data.correspondences, t_of_X_l);
-        std::printf("Here 10\n");
-
-
-        // first update P based on equation 12 in the paper
-        Z = matrix_data.putative_target - matrix_data.putative_source;
-        for (int i = 1; i < num_correspondences; i++){
-            float part1 = gamma * std::exp((- Z.row(i).squaredNorm() / (2 * variance)));
-            float part2 = (1 - gamma) * pow(2 * M_PI * variance, dims/2) / a;
-            float p_i = part1 / (part1 + part2);
-            P(i,i) = p_i;
-        }
-        std::printf("Here 11\n");
-
-        // compute first variance and gamma
-        gamma = P.trace() / num_correspondences;
-        var_denominator = dims * P.trace();
-        variance = ((Y_l - X_l).transpose() * P * (Y_l - X_l)).trace() / var_denominator;   
-
-        // compute first C values
-        left = J.transpose()*P*J*Tau + lambda1*variance*Eigen::MatrixXf::Identity(npoints, npoints) + lambda2*variance*laplacian*Tau; // n x n
-        right = J.transpose() * P * Y_l;
-        C = left.colPivHouseholderQr().solve(right);
-    }
-
+    }    
 }
 
-void get_correspondence_matrix(Eigen::MatrixXf X, Eigen::MatrixXf correspondences, Eigen::MatrixXf putative_X){
-    int corr_points = correspondences.rows();
-    for (int i = 0; i < corr_points; i++){
-        putative_X.row(correspondences(i,0)) = X.row(i);
-        putative_X.row(correspondences(i,0)) = X.row(i);
-    }
+void NonrigidAlign::update_correspondences(float fpfh_distance){
+    // compute correspondences and update PCL form
+    pcl_data.correspondences = calculateCorrespondences(pcl_data.source, pcl_data.target, fpfh_distance);
+    
+    // update Eigen form
+    ncorrs = pcl_data.correspondences.size();
+    eigen_data.correspondences = Eigen::MatrixXf(ncorrs, 2);
+    for (int i = 0; i < ncorrs; i++){
+        pcl::Correspondence corr = pcl_data.correspondences.at(i);
+        eigen_data.correspondences(i,0) = corr.index_query;
+        eigen_data.correspondences(i,1) = corr.index_match;    
 }
-

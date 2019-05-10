@@ -16,15 +16,13 @@
 #include <eigen3/Eigen/Sparse>
 
 // my packages
-#include "parseTosca.h"
 #include "fpfh.h"
 #include "register.h"
 #include "rkhs.h"
+#include "als.h"
 
-// boost
-#include <boost/smart_ptr/shared_ptr.hpp>
 
-struct MatrixData {
+struct EigenData {
     Eigen::MatrixXf source;
     Eigen::MatrixXf target;
     Eigen::MatrixXf putative_source;
@@ -32,55 +30,76 @@ struct MatrixData {
     Eigen::MatrixXf correspondences;
 };
 
+struct PclData {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr source;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr target;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr putative_source;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr putative_target;
+    pcl::Correspondences correspondences;
+};
+
 
 
 class NonrigidAlign {
     private:
-        catData data;
-        pcl::Correspondences correspondences;
+        EigenData eigen_data;
+        PclData pcl_data;
         Eigen::SparseMatrix<float> laplacian;
-        MatrixData matrix_data; 
-        // pcl::PointCloud<pcl::PointXYZ>::Ptr putative_source;
-        // pcl::PointCloud<pcl::PointXYZ>::Ptr putative_target;
+        Eigen::MatrixXf Tau; // should change this to sparse
+        Eigen::MatrixXf transformed_X;
+        int num_samples;
+        int npoints;
+        int ncorrs;
+        int dims = 3;
+        float volume = 1. / (200. * 200. * 200); // adjust to double if not accurate enough
+
+    /**
+     * Computes the correspondences between the source and target using
+     * FPFH. These correspondences will determine the points in the 
+     * putative source and putative target.
+     */
+    void update_correspondences(float fpfh_distance);
+
+    /**
+     * Updates putative point sets based on correspondences
+     */
+    void update_putative_sets();
+
+    /**
+     * Computes and updates the graph laplacian for the current source points
+     * This is the matrix A in the paper
+     */
+    void update_laplacian();
+
+    /**
+     * Computes and updates the Gaussian Kernel matrix for the current
+     * source points
+     */
+    void update_Tau();
+
+    /**
+     * sets X -> T(X) for some given RKHS C matrix (gaussina kernel).
+     */
+    void transform_source(Eigen::MatrixXf C);
 
 
     public:
 
         /**
-         * Constructor for default cat data
+         * Constructor. source and target are self explanatory.
+         * num_samples represents how many points to be randomly sampled in computing the alignment (-1 means use all points)
          */
-        NonrigidAlign();
+        NonrigidAlign(pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZ>::Ptr target,
+            int npoints, int num_samples = -1);
 
         /**
-         * Computes FPFH Correspondences that are valid between the source and target
-         * of the defined data
+         * solve one iteration of the non-rigid alignment
          */
-        void getCorrespondences();
+        void alignOneiter(Eigen::MatrixXf final_transformed, float lambda1, float lambda2);
 
-        /**
-         * Once correspondences are calculated, transfers all matrices to eigen format instead of
-         * pcl point cloud.
-         */
-        void generateEigenMatrices();
 
         /**
          * Displays 3D view of correspondences
          */
         void displayCorrespondences();
-
-        /**
-         * computes the Graph Laplacian of the ALL source points
-         * This is the matrix A from the paper
-         */
-        void computeLaplacian();
-
-        /**
-         * solve one iteration of the non-rigid alignment
-         */
-        void alignOneiter(float lambda1, float lambda2);
-
-
 };
-
-
-void get_correspondence_matrix(Eigen::MatrixXf X, Eigen::MatrixXf correspondences, Eigen::MatrixXf putative_X);
