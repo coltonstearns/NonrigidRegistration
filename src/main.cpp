@@ -38,8 +38,8 @@ int main(){
     // lambda .01 .1 == ?
     // lambda .1 3 == ?
     // lambda .1 100 == 
-    // lambda .1 .5 == 
-    test.alignOneiter(.1, .1); // set lambda1 = lambda2 = .1
+    // lambda .001, 1 == negative infinity --> check this for debugging!
+    test.alignOneiter(.001, 1); // set lambda1 = lambda2 = .1
     end = time(NULL);
     std::printf("Full Pipeline for first alignment took %lld seconds.\n", (long long) end-start);
     start = end;
@@ -75,77 +75,3 @@ int main(){
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// =============================================================================
-// =============================================================================
-// =========================== Old Version of Main =============================
-// =============================================================================
-// =============================================================================
-
-
-// int main()
-// {
-    
-    // =============== Test point_set_squared_distance ==================
-    //Eigen::Matrix<double, 4, 2> x;
-    //x << 1, 2, 3, 4, 5, 6, 7, 8;
-    //std::cout << x << std::endl;
-
-    //Eigen::Matrix<double, 3, 2> c;
-    //c << 1, 1, 2, 2, 3, 3;
-
-    //Eigen::MatrixXd A = point_set_squared_distance(x, c);
-    //std::cout << A << std::endl;
-
-    // ===================== Test parseToscaData =========================
-    //wchar_t test_dir[] = L"C:\\Users\\cstea\\Documents\\6.838 Final Project\\6.838 Final Project\\Datasets\\*"; //because is array, is automatically a pointer
-    //std::vector<std::array<double, 3>> data = parseToscaData(test_dir);
-
-    // ===================== Test generateCatPointCloud ==================
-    // catData rawdata = generateCatPointCloud();
-    // int ypoints = rawdata.baseline->size() / 3;
-    // int xpoints = rawdata.transformed->size() / 3;
-    // Eigen::MatrixXd ydata = Eigen::Map<Eigen::MatrixXd>(rawdata.baseline->data(), 3, ypoints).transpose();
-    // Eigen::MatrixXd xdata = Eigen::Map<Eigen::MatrixXd>(rawdata.transformed->data(), 3, xpoints).transpose();
-
-    // ===================== Test Creating Own Cloud =====================
-    // std::vector<pcl::PointXYZ> points;
-    // for (int i=0; i < ypoints; i++){
-    //     pcl::PointXYZ curr_point = pcl::PointXYZ(rawdata.baseline->at(3*i), rawdata.baseline->at(3*i+1), rawdata.baseline->at(3*i+2));
-    //     points.push_back(curr_point);
-    // }
-
-    // // Example of Visualization
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    // cloud->width = ypoints; cloud->height = 1;
-    // cloud->is_dense = true;
-    // cloud->points.resize (cloud->width * cloud->height);
-    // for (size_t i = 0; i < cloud->points.size (); ++i) {
-    //     cloud->points[i] = points[i];
-    // }
-    
-    // ===================== Test Computing Correspondences =====================
-    // pcl::Correspondences correspondences = calculateCorrespondences(rawdata.source, rawdata.target, 8.9); // 8.9 is optimal value
-    // std::cout << correspondences.size() << endl;
-    // std::cout << correspondences.at(0) << endl;  // is a correspondence struct from PCL library
-
-    // ============================== Visualize =================================
-    // visualize_correspondences(rawdata.baseline, rawdata.transformed, correspondences);
-
-    // ====================== Test Laplacian Matrix Generation ===================
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr transformed (new pcl::PointCloud<pcl::PointXYZ>);
-    // transform(rawdata.source, rawdata.target, correspondences, transformed);
-// }

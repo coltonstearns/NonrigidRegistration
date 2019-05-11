@@ -18,18 +18,8 @@
 
 // my packages
 #include "fpfh.h"
-#include "register.h"
-#include "rkhs.h"
 #include "als.h"
 
-
-struct EigenData {
-    Eigen::MatrixXf source;
-    Eigen::MatrixXf target;
-    Eigen::MatrixXf putative_source;
-    Eigen::MatrixXf putative_target;
-    Eigen::MatrixXf correspondences;
-};
 
 struct PclData {
     pcl::PointCloud<pcl::PointXYZ>::Ptr source;
@@ -40,13 +30,11 @@ struct PclData {
 };
 
 
-
 class NonrigidAlign {
     private:
         EigenData eigen_data;
         PclData pcl_data;
         Eigen::SparseMatrix<float> laplacian;
-        Eigen::MatrixXf Tau; // should change this to sparse
         int num_samples;
         int npoints;
         int ncorrs;
@@ -72,15 +60,9 @@ class NonrigidAlign {
     void update_laplacian();
 
     /**
-     * Computes and updates the Gaussian Kernel matrix for the current
-     * source points
-     */
-    void update_Tau();
-
-    /**
      * sets X -> T(X) for some given RKHS C matrix (gaussina kernel).
      */
-    void transform_source(Eigen::MatrixXf C);
+    void NonrigidAlign::transform_source(Eigen::MatrixXf C, Eigen::MatrixXf source_subsampled);
 
 
     public:
@@ -105,3 +87,7 @@ class NonrigidAlign {
          */
         void displayCorrespondences();
 };
+
+
+// Computes the laplacian of the point cloud source
+Eigen::SparseMatrix<float> getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source);

@@ -51,21 +51,19 @@ void NonrigidAlign::alignOneiter(float lambda1, float lambda2) {
     update_laplacian();
     cout << "/////////////////////////" << std::endl;
     cout << laplacian.nonZeros() << std::endl;
-    update_Tau();
 
     // create our ALS object for this iteration
     // std::printf("1\n");
-    AlternatingLeastSquares als (Tau, laplacian, eigen_data.putative_source,
-     eigen_data.putative_target, lambda1, lambda2, volume, npoints,
-     ncorrs);
+    AlternatingLeastSquares als (eigen_data, laplacian, lambda1, lambda2, volume, npoints,
+     ncorrs, num_samples);
 
     // perform ALS for 5 iterations to get optimal C
     // std::printf("2\n");
-    als.optimize(1);
+    als.optimize(2);
 
     // update our values to T(X)
     // std::printf("3\n");
-    transform_source(als.C);
+    transform_source(als.C, als.Tau);
 
 }
 
@@ -120,24 +118,12 @@ void NonrigidAlign::update_laplacian(){
     // TODO
 }
 
-void NonrigidAlign::update_Tau(){
-    Eigen::MatrixXf t = computeGramKernel(eigen_data.source, 0.1); //set beta = .1
-    std::cout << "------------" << std::endl;
-    std::cout << t(16,0) << std::endl;
-    std::cout << t(17,0) << std::endl;
-    std::cout << t(18,0) << std::endl;
-    std::cout << t(19,0) << std::endl;
-    std::cout << t(20,0) << std::endl;
-    std::cout << t(21,0) << std::endl;
-    Tau = t;
-    // TODO Tau is mostly sparse --> should change this
-}
 
 // TODO: read over this and make it cleaner
-void NonrigidAlign::transform_source(Eigen::MatrixXf C) {
+void NonrigidAlign::transform_source(Eigen::MatrixXf C, Eigen::MatrixXf subsampled_tau) {
     this->transformed_X = Eigen::MatrixXf::Zero(npoints, 3);
     for (int i = 0; i < npoints; i++){
-        Eigen::Block<Eigen::MatrixXf, 1, -1, false> precomputed_kernel_vals = Tau.row(i);
+        Eigen::Block<Eigen::MatrixXf, 1, -1, false> precomputed_kernel_vals = subsampled_tau.row(i);
         for (int j = 0; j < npoints; j++) {
             // Kernel(x_i, x_{all}) * C_{all} to get the transformed point T(x_i)
             if (precomputed_kernel_vals(j) > 0.000001){
@@ -159,4 +145,58 @@ void NonrigidAlign::update_correspondences(float fpfh_distance){
         eigen_data.correspondences(i,0) = corr.index_query;
         eigen_data.correspondences(i,1) = corr.index_match;    
     }
+}
+
+
+
+// ========================= OTHER METHODS ===============================
+
+Eigen::SparseMatrix<float> getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source){
+    // define our ratio epsilon
+    float epsilon = .15;  //.1 is optimal to get about 25 neighbors per point!
+    float max_threshold = - log(.000001) * epsilon;
+
+    // get time
+    time_t start_time;
+	start_time = time(NULL);
+    
+    // get the matrix of the source points
+    int num_source_points = int (source->width);
+    std::cout << "Number of data points: " << num_source_points << std::endl;
+
+    // compute symmetric x differences matrix
+    // SPEED UP: search through KD tree and get k nearest neighbors; compute graph laplacian based on that
+    Eigen::MatrixXf edge_weights(num_source_points,num_source_points);
+    float curr_weight;
+    for (int i = 0; i < num_source_points; i++) {
+        for (int j = 0; j <= i; j++){
+            float dist = pow((source->at(i).x - source->at(j).x), 2) + pow((source->at(i).y - source->at(j).y), 2) + pow((source->at(i).z - source->at(j).z), 2);
+            if (dist < max_threshold){
+                if (i != j){
+                    curr_weight = exp(- dist / epsilon);
+                    edge_weights(i,j) = curr_weight;
+                    edge_weights(j,i) = curr_weight;
+                }
+            }
+        }
+    }
+    Eigen::SparseMatrix<float> edge_weights_sparse = edge_weights.sparseView();
+    std::cout << "Weight Matrix Num Nonzero Entries: " << edge_weights_sparse.nonZeros() << std::endl;
+
+    // compute diagonal vertex weight matrix
+    Eigen::SparseMatrix<float> vertex_vals(num_source_points,num_source_points);
+    for (int i = 0; i < num_source_points; i++) {
+        float vertex_weight = edge_weights_sparse.col(i).sum();
+        vertex_vals.insert(i,i) = vertex_weight;
+    }
+
+    // calculate Laplacian
+    Eigen::SparseMatrix<float> laplacian = vertex_vals - edge_weights_sparse;
+
+    time_t end_time;
+	end_time = time(NULL);
+    std::cout << "Time Elapsed: " << end_time - start_time << std::endl;
+    std::cout << "Num Nonzero entries in Laplacian " << laplacian.nonZeros() << std::endl;
+
+    return laplacian;
 }
