@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "parseTosca.h"
 #include "alignment.h"
 
 int main(){
@@ -33,9 +32,14 @@ int main(){
     std::printf("Loading Data Took %lld seconds.\n", (long long) end-start);
     start = end;
 
-    // get correspondences
-    Eigen::MatrixXf transformed (npoints, 3);
-    test.alignOneiter(transformed, .1, .1); // set lambda1 = lambda2 = .1
+    // run registration
+    // lambda .1 .1 == blob of garbage
+    // lambda .05 .1 == ?
+    // lambda .01 .1 == ?
+    // lambda .1 3 == ?
+    // lambda .1 100 == 
+    // lambda .1 .5 == 
+    test.alignOneiter(.1, .1); // set lambda1 = lambda2 = .1
     end = time(NULL);
     std::printf("Full Pipeline for first alignment took %lld seconds.\n", (long long) end-start);
     start = end;
@@ -46,12 +50,27 @@ int main(){
     // compute our kernel matrix!
     pcl::PointCloud<pcl::PointXYZ>::Ptr vis (new pcl::PointCloud<pcl::PointXYZ>);
     for (int i = 0; i < npoints; i++){
-        pcl::PointXYZ p (transformed(i,0), transformed(i,1), transformed(i,2));
+        pcl::PointXYZ p (test.transformed_X(i,0), test.transformed_X(i,1), test.transformed_X(i,2));
         vis->push_back(p);
+        cout << p << std::endl;
     } 
-    pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+    pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer Transformed");
     viewer.showCloud (vis);
     while (!viewer.wasStopped ())
+    {
+    }
+
+    // Visualize original source
+    pcl::visualization::CloudViewer viewer2 ("Simple Cloud Viewer Source");
+    viewer2.showCloud (wolfdata.source);
+    while (!viewer2.wasStopped ())
+    {
+    }
+
+    // visualize target
+    pcl::visualization::CloudViewer viewer3 ("Simple Cloud Viewer Target");
+    viewer3.showCloud (wolfdata.target);
+    while (!viewer3.wasStopped ())
     {
     }
 }

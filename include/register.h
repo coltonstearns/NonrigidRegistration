@@ -20,5 +20,5 @@
 void transform(pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZ>::Ptr target,
  pcl::Correspondences correspondences, pcl::PointCloud<pcl::PointXYZ>::Ptr transformed);
 
-void getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source, Eigen::SparseMatrix<float> laplacian);
+Eigen::SparseMatrix<float> getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source);
 Eigen::MatrixXf point_set_squared_distance(Eigen::MatrixXf X, Eigen::MatrixXf C);

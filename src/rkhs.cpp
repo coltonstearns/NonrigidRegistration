@@ -15,9 +15,10 @@
  * This is called \Tau in the paper
  * gramKernel needs to be of size (points x points)
  */
-void computeGramKernel(Eigen::MatrixXf source, Eigen::MatrixXf gramKernel, float beta){
+Eigen::MatrixXf computeGramKernel(Eigen::MatrixXf source, float beta){
     // check for correctly formatted input
     const int ndata = source.rows();
+    Eigen::MatrixXf gramKernel (ndata, ndata);
     const int gramwidth = gramKernel.rows();
     const int gramheight = gramKernel.cols();
     if ((ndata != gramwidth) && (ndata != gramheight)) {
@@ -28,11 +29,20 @@ void computeGramKernel(Eigen::MatrixXf source, Eigen::MatrixXf gramKernel, float
     float kernel_val;
     for (int i = 0; i < ndata; i++) {
         for (int j = 0; j <= i; j++){
-            dist = pow((source(i,0) - source(j,0)), 2) + pow((source(i,1) - source(j,1)), 2) + pow((source(i,2) - source(j,2)), 2);
+            dist = (source.row(i) - source.row(j)).squaredNorm();
             kernel_val = exp(-beta * dist);
             gramKernel(i,j) = kernel_val;
             gramKernel(j,i) = kernel_val;
         }
     }
+    
+    std::cout << gramKernel(16,0) << std::endl;
+    std::cout << gramKernel(17,0) << std::endl;
+    std::cout << gramKernel(18,0) << std::endl;
+    std::cout << gramKernel(19,0) << std::endl;
+    std::cout << gramKernel(20,0) << std::endl;
+    std::cout << gramKernel(21,0) << std::endl;
+    return gramKernel;
+
 
 }

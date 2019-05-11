@@ -9,7 +9,7 @@
  * num_samples represents how many points to be randomly sampled in computing the alignment (-1 means use all points)
  */
 NonrigidAlign::NonrigidAlign(pcl::PointCloud<pcl::PointXYZ>::Ptr source,
- pcl::PointCloud<pcl::PointXYZ>::Ptr target, int npoints, int num_samples = -1){
+ pcl::PointCloud<pcl::PointXYZ>::Ptr target, int npoints, int num_samples){
     // set start by setting input values for source and target
     this->pcl_data.source = source;
     this->pcl_data.target = target;
@@ -40,24 +40,31 @@ NonrigidAlign::NonrigidAlign(pcl::PointCloud<pcl::PointXYZ>::Ptr source,
 /**
  * solve one iteration of the non-rigid alignment
  */
-void NonrigidAlign::alignOneiter(Eigen::MatrixXf final_transformed, float lambda1, float lambda2) {
+void NonrigidAlign::alignOneiter(float lambda1, float lambda2) {
     // start by getting correspondences and sets
+    // std::printf("-1\n");
     update_correspondences(8.9);
     update_putative_sets();
 
     // get laplacian and Tau
+    // std::printf("0\n");
     update_laplacian();
+    cout << "/////////////////////////" << std::endl;
+    cout << laplacian.nonZeros() << std::endl;
     update_Tau();
 
     // create our ALS object for this iteration
+    // std::printf("1\n");
     AlternatingLeastSquares als (Tau, laplacian, eigen_data.putative_source,
      eigen_data.putative_target, lambda1, lambda2, volume, npoints,
      ncorrs);
 
     // perform ALS for 5 iterations to get optimal C
-    als.optimize(5);
+    // std::printf("2\n");
+    als.optimize(1);
 
     // update our values to T(X)
+    // std::printf("3\n");
     transform_source(als.C);
 
 }
@@ -107,28 +114,34 @@ void NonrigidAlign::update_putative_sets() {
 
 void NonrigidAlign::update_laplacian(){
     // compute the laplacian
-    Eigen::SparseMatrix<float> laplacian (npoints, npoints);
-    getLaplacian(pcl_data.source, laplacian);
+    this->laplacian = getLaplacian(pcl_data.source);
 
     // break laplacian down into eigenvecs and eigenvals and build up approximation
     // TODO
 }
 
 void NonrigidAlign::update_Tau(){
-    Eigen::MatrixXf t (npoints, npoints);
-    computeGramKernel(eigen_data.source, t, 0.1); //set beta = .1
+    Eigen::MatrixXf t = computeGramKernel(eigen_data.source, 0.1); //set beta = .1
+    std::cout << "------------" << std::endl;
+    std::cout << t(16,0) << std::endl;
+    std::cout << t(17,0) << std::endl;
+    std::cout << t(18,0) << std::endl;
+    std::cout << t(19,0) << std::endl;
+    std::cout << t(20,0) << std::endl;
+    std::cout << t(21,0) << std::endl;
+    Tau = t;
     // TODO Tau is mostly sparse --> should change this
 }
 
 // TODO: read over this and make it cleaner
 void NonrigidAlign::transform_source(Eigen::MatrixXf C) {
-    transformed_X = Eigen::MatrixXf::Zero(npoints, 3);
+    this->transformed_X = Eigen::MatrixXf::Zero(npoints, 3);
     for (int i = 0; i < npoints; i++){
         Eigen::Block<Eigen::MatrixXf, 1, -1, false> precomputed_kernel_vals = Tau.row(i);
         for (int j = 0; j < npoints; j++) {
             // Kernel(x_i, x_{all}) * C_{all} to get the transformed point T(x_i)
             if (precomputed_kernel_vals(j) > 0.000001){
-                transformed_X.row(i) += C.row(i) * (precomputed_kernel_vals(j) * Eigen::MatrixXf::Identity(3,3)); // results in 1x3
+                this->transformed_X.row(i) += C.row(i) * (precomputed_kernel_vals(j) * Eigen::MatrixXf::Identity(3,3)); // results in 1x3
             }
         }
     }    
@@ -145,4 +158,5 @@ void NonrigidAlign::update_correspondences(float fpfh_distance){
         pcl::Correspondence corr = pcl_data.correspondences.at(i);
         eigen_data.correspondences(i,0) = corr.index_query;
         eigen_data.correspondences(i,1) = corr.index_match;    
+    }
 }

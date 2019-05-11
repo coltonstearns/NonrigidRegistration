@@ -8,4 +8,4 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Sparse>
 
-void computeGramKernel(Eigen::MatrixXf source, Eigen::MatrixXf gramKernel, float beta);
+Eigen::MatrixXf computeGramKernel(Eigen::MatrixXf source, float beta);

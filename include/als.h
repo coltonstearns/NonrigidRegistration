@@ -42,7 +42,7 @@ class AlternatingLeastSquares {
     /**
      * Updates P matrix based on equation 12
      */
-    void update_P(Eigen::MatrixXf P, Eigen::MatrixXf X_new, float gamma, float variance);
+    Eigen::MatrixXf update_P(Eigen::MatrixXf X_new, float gamma, float variance);
 
     /**
      * Updates gamma and variance based on equations 13 and 14

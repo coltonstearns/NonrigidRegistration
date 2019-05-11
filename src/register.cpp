@@ -5,7 +5,7 @@
 #include "register.h"
 
 
-void getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source, Eigen::SparseMatrix<float> laplacian){
+Eigen::SparseMatrix<float> getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source){
     // define our ratio epsilon
     float epsilon = .15;  //.1 is optimal to get about 25 neighbors per point!
     float max_threshold = - log(.000001) * epsilon;
@@ -45,12 +45,14 @@ void getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source, Eigen::SparseMatri
     }
 
     // calculate Laplacian
-    laplacian = vertex_vals - edge_weights_sparse;
+    Eigen::SparseMatrix<float> laplacian = vertex_vals - edge_weights_sparse;
 
     time_t end_time;
 	end_time = time(NULL);
     std::cout << "Time Elapsed: " << end_time - start_time << std::endl;
     std::cout << "Num Nonzero entries in Laplacian " << laplacian.nonZeros() << std::endl;
+
+    return laplacian;
 }
 
 

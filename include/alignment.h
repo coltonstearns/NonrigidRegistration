@@ -2,6 +2,7 @@
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include <math.h>
+#include <stdio.h>
 
 // PCL dependencies
 #include <pcl/io/pcd_io.h>  // for working with point cloud data structures
@@ -46,7 +47,6 @@ class NonrigidAlign {
         PclData pcl_data;
         Eigen::SparseMatrix<float> laplacian;
         Eigen::MatrixXf Tau; // should change this to sparse
-        Eigen::MatrixXf transformed_X;
         int num_samples;
         int npoints;
         int ncorrs;
@@ -85,17 +85,19 @@ class NonrigidAlign {
 
     public:
 
+        Eigen::MatrixXf transformed_X;
+
         /**
          * Constructor. source and target are self explanatory.
          * num_samples represents how many points to be randomly sampled in computing the alignment (-1 means use all points)
          */
         NonrigidAlign(pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZ>::Ptr target,
-            int npoints, int num_samples = -1);
+            int npoints, int num_samples);
 
         /**
          * solve one iteration of the non-rigid alignment
          */
-        void alignOneiter(Eigen::MatrixXf final_transformed, float lambda1, float lambda2);
+        void alignOneiter(float lambda1, float lambda2);
 
 
         /**
