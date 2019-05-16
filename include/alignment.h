@@ -3,6 +3,7 @@
 #include <eigen3/Eigen/Dense>
 #include <math.h>
 #include <stdio.h>
+#include <unordered_set>
 
 // PCL dependencies
 #include <pcl/io/pcd_io.h>  // for working with point cloud data structures
@@ -17,7 +18,8 @@
 #include <eigen3/Eigen/Sparse>
 
 // my packages
-#include "fpfh.h"
+#include "utils/fpfh.h"
+#include "utils/laplacian.h"
 #include "als.h"
 
 
@@ -32,62 +34,63 @@ struct PclData {
 
 class NonrigidAlign {
     private:
-        EigenData eigen_data;
+        // acual data
         PclData pcl_data;
-        Eigen::SparseMatrix<float> laplacian;
-        int num_samples;
+
+        // point set values
+        int nsamples;
         int npoints;
         int ncorrs;
         int dims = 3;
-        float volume = 1. / (200. * 200. * 200); // adjust to double if not accurate enough
+        float volume = (200. * 200. * 100.); // adjust to double if not accurate enough
+        float tosca_fpfh_distance = 8.9;
 
-    /**
-     * Computes the correspondences between the source and target using
-     * FPFH. These correspondences will determine the points in the 
-     * putative source and putative target.
-     */
-    void update_correspondences(float fpfh_distance);
+        // hyperparameters
+        float epsilon;
+        float beta;
+        float lambda1;
+        float lambda2;
+        float sparsity_threshold;
+        int round = 0;
 
-    /**
-     * Updates putative point sets based on correspondences
-     */
-    void update_putative_sets();
+        /**
+         * Computes the correspondences between the source and target using
+         * FPFH. These correspondences will determine the points in the 
+         * putative source and putative target.
+         */
+        void update_correspondences(float fpfh_distance);
 
-    /**
-     * Computes and updates the graph laplacian for the current source points
-     * This is the matrix A in the paper
-     */
-    void update_laplacian();
-
-    /**
-     * sets X -> T(X) for some given RKHS C matrix (gaussina kernel).
-     */
-    void NonrigidAlign::transform_source(Eigen::MatrixXf C, Eigen::MatrixXf source_subsampled);
+        /**
+         * Updates putative point sets based on correspondences
+         */
+        void update_putative_sets();
 
 
     public:
 
+        // computed properties of the data
         Eigen::MatrixXf transformed_X;
+        Eigen::SparseMatrix<float> laplacian;
+        EigenData eigen_data;
 
         /**
          * Constructor. source and target are self explanatory.
-         * num_samples represents how many points to be randomly sampled in computing the alignment (-1 means use all points)
+         * nsamples represents how many points to be randomly sampled in computing the alignment (-1 means use all points)
          */
         NonrigidAlign(pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZ>::Ptr target,
-            int npoints, int num_samples);
+            int npoints, int nsamples, float beta = .15, float epsilon = .15, float lambda1 = .4, float lambda2 = .4,
+            float sparsity_threshold = .0000001);
 
         /**
          * solve one iteration of the non-rigid alignment
          */
-        void alignOneiter(float lambda1, float lambda2);
+        void alignOneiter(int iteration);
 
 
         /**
          * Displays 3D view of correspondences
          */
         void displayCorrespondences();
+
 };
 
-
-// Computes the laplacian of the point cloud source
-Eigen::SparseMatrix<float> getLaplacian(pcl::PointCloud<pcl::PointXYZ>::Ptr source);

@@ -95,7 +95,7 @@ pcl::Correspondences calculateCorrespondences(pcl::PointCloud<pcl::PointXYZ>::Pt
 /**
  * Helps visualise the correspondences we will use
  **/
-void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, pcl::PointCloud<pcl::PointXYZ>::Ptr target_raw, pcl::Correspondences correspondences){
+void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, pcl::PointCloud<pcl::PointXYZ>::Ptr target_raw, pcl::Correspondences correspondences, float beta, int iter){
     // convert both clouds into RGB
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr source (new pcl::PointCloud<pcl::PointXYZRGB>);
     for (int i=0; i < source_raw->size(); i++){
@@ -123,7 +123,12 @@ void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, p
     // because my two clouds were //overlapping together you can ignore this if your clouds don't overlap
     // Add it to visualizer
     Eigen::Matrix4f t;
-    t<<1,0,0,100,
+    // t<<1,0,0,100,
+    //     0,1,0,0,
+    //     0,0,1,0,
+    //     0,0,0,1;
+
+    t<<1,0,0,0,
         0,1,0,0,
         0,0,1,0,
         0,0,0,1;
@@ -150,7 +155,7 @@ void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, p
         std::stringstream ss ("line");
         ss << i;
         //this is to translate the keypoint location as I translated the original cloud
-        p_tgt.x+=100;
+        // p_tgt.x+=100;
             
         std::stringstream sss ("spheresource");
         sss << i;
@@ -174,5 +179,10 @@ void visualize_correspondences(pcl::PointCloud<pcl::PointXYZ>::Ptr source_raw, p
         alter=!alter;
     }
     viscorr.resetCamera ();
-    viscorr.spin (); 
+    // viscorr.spin (); 
+
+    std::ostringstream name;
+    name << "correspondences" << beta << " " << iter << ".png";
+    std::string str_name(name.str());
+    viscorr.saveScreenshot(str_name);
 }

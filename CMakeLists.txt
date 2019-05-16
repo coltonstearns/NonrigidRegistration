@@ -10,7 +10,8 @@ find_package( PCL 1.9 REQUIRED )
 include_directories(include)
 
 # add all our source files
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+
 
 
 if( PCL_FOUND )
